@@ -46,25 +46,49 @@ class ChunkReader
         $jobs = new Collection();
         foreach ($worksheets as $name => $sheetImport) {
             $startRow = HeadingRowExtractor::determineStartRow($sheetImport);
+            $isLimit = false;
 
             if ($sheetImport instanceof WithLimit) {
                 $limit = $sheetImport->limit();
 
                 if ($limit <= $totalRows[$name]) {
-                    $totalRows[$name] = $sheetImport->limit();
+                    $totalRows[$name] = $startRow + $limit;
+                    $isLimit = true;
+
+                    if ($chunkSize > $limit) {
+                        $chunkSize = $limit;
+                    }
                 }
             }
 
-            for ($currentRow = $startRow; $currentRow <= $totalRows[$name]; $currentRow += $chunkSize) {
-                $jobs->push(new ReadChunk(
-                    $import,
-                    $reader->getPhpSpreadsheetReader(),
-                    $temporaryFile,
-                    $name,
-                    $sheetImport,
-                    $currentRow,
-                    $chunkSize
-                ));
+            if ($isLimit) {
+                for ($currentRow = $startRow; $currentRow < $totalRows[$name]; $currentRow += $chunkSize) {
+                    if (($currentRow + $chunkSize) > $totalRows[$name]) {
+                        $chunkSize -= ($currentRow + $chunkSize) - $totalRows[$name];
+                    }
+
+                    $jobs->push(new ReadChunk(
+                        $import,
+                        $reader->getPhpSpreadsheetReader(),
+                        $temporaryFile,
+                        $name,
+                        $sheetImport,
+                        $currentRow,
+                        $chunkSize
+                    ));
+                }
+            } else {
+                for ($currentRow = $startRow; $currentRow <= $totalRows[$name]; $currentRow += $chunkSize) {
+                    $jobs->push(new ReadChunk(
+                        $import,
+                        $reader->getPhpSpreadsheetReader(),
+                        $temporaryFile,
+                        $name,
+                        $sheetImport,
+                        $currentRow,
+                        $chunkSize
+                    ));
+                }
             }
         }
 
