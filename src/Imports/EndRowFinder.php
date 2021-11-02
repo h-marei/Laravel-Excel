@@ -26,10 +26,18 @@ class EndRowFinder
 
         // When no start row given,
         // use the first row as start row.
-        $startRow = $startRow ?? 1;
-
         // Subtract 1 row from the start row, so a limit
         // of 1 row, will have the same start and end row.
-        return ($startRow - 1) + $limit;
+        $startRow = ($startRow ?? 1) - 1;
+
+        if ($import instanceof WithChunkReading) {
+            $chunkSize = $import->chunkSize();
+
+            $limit = ($startRow + $chunkSize) > $highestRow
+                ? $highestRow - $startRow
+                : $chunkSize;
+        }
+
+        return $startRow + $limit;
     }
 }
